@@ -22,7 +22,7 @@ const handleSearch = () => {
           <div class="space-y-2">
             <h1 class="text-3xl font-bold tracking-tighter sm:text-5xl">BREWHAUS</h1>
             <p class="max-w-[700px] text-muted-foreground md:text-xl">
-              Search for your favorite brewery.
+              Search for your new favorite brewery!
             </p>
           </div>
         </div>
