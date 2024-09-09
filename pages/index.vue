@@ -5,8 +5,18 @@ useHead({
 
 const searchQuery = ref('')
 const isLoading = ref(false)
-const { data, refresh } = await useLazyFetch(() => `/api/brewerydb/search?size=9&name=${searchQuery.value}`, {
-  watch: false // Remove automatic watching
+const currentPage = ref(1)
+const pageSize = 9
+
+const { data: metaData, refresh: refreshMeta } = await useLazyFetch(`/api/brewerydb/meta?name=${searchQuery.value}`, {
+  lazy: true,
+  server: false,
+  watch: false
+})
+
+const { data, refresh } = await useLazyFetch(() => `/api/brewerydb/search?size=${pageSize}&page=${currentPage.value}&name=${searchQuery.value}`, {
+  watch: false, // Remove automatic watching
+  server: false
 })
 
 // Custom debounce function
@@ -21,7 +31,15 @@ function debounce(fn, delay) {
 // Create a debounced version of the refresh function
 const debouncedRefresh = debounce(async () => {
   isLoading.value = true
-  await refresh()
+  const result = await refresh()
+  const metaResult = await refreshMeta()
+  if (metaResult && metaResult.data) {
+    totalPages.value = metaResult.data.total
+  }
+  if (result && result.data) {
+    data.value = result.data.breweries
+    totalResults.value = result.data.totalResults
+  }
   isLoading.value = false
 }, 300) // 300ms delay
 
@@ -33,6 +51,24 @@ watch(searchQuery, () => {
 const handleSearch = () => {
   debouncedRefresh()
 }
+
+const handlePrevPage = () => {
+  if (currentPage.value > 1) {
+    currentPage.value--
+    debouncedRefresh()
+  }
+}
+
+const handleNextPage = () => {
+  if (currentPage.value < totalPages.value) {
+    currentPage.value++
+    console.log('currentPage', currentPage.value)
+    debouncedRefresh()
+  }
+}
+
+const totalResults = ref(0)
+const totalPages = computed(() => Math.ceil(metaData.value?.total/pageSize) || 0)
 </script>
 
 
@@ -49,19 +85,38 @@ const handleSearch = () => {
           </div>
         </div>
       </div>
-      <form @submit.prevent="handleSearch" class="mt-5 max-w-[700px] mx-auto flex">
-        <input
-          v-model="searchQuery"
-          class="flex-grow h-10 border border-input ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 w-full rounded-lg bg-muted px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-          placeholder="Search breweries..."
-          type="search"
-        >
-        <button
-          type="submit"
-          class="ml-2 px-4 py-2 bg-primary text-primary-foreground border border-input rounded-lg text-sm font-medium"
-        >
-          Search
-        </button>
+      <form @submit.prevent="handleSearch" class="mt-5 max-w-[700px] mx-auto">
+        <div class="flex items-center">
+          <input
+            v-model="searchQuery"
+            class="flex-grow h-10 border border-input ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 w-full rounded-lg bg-muted px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+            placeholder="Search breweries..."
+            type="search"
+          >
+          <button
+            type="submit"
+            class="ml-2 px-4 py-2 bg-primary text-primary-foreground border border-input rounded-lg text-sm font-medium"
+          >
+            Search
+          </button>
+        </div>
+        <div class="flex items-center justify-center mt-4 space-x-2">
+          <button
+            @click="handlePrevPage"
+            :disabled="currentPage === 1"
+            class="px-4 py-2 bg-primary text-primary-foreground border border-input rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+          Prev
+          </button>
+          <span>Page {{ currentPage }} of {{ totalPages }}</span>
+          <button
+            @click="handleNextPage"
+            :disabled="currentPage === totalPages"
+            class="px-4 py-2 bg-primary text-primary-foreground border border-input rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Next
+          </button>
+        </div>
       </form>
     </section>
     <section class="w-full py-12 md:py-24 lg:py-32">
@@ -91,7 +146,6 @@ const handleSearch = () => {
                   stroke-linejoin="round"
                   class="mx-auto h-12 w-12 text-primary"
                 >
-                  <!-- ... (SVG path data) ... -->
                 </svg>
                 <h1 class="mt-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">No Breweries Found</h1>
                 <p class="mt-4 text-muted-foreground">
