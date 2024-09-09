@@ -1,8 +1,7 @@
 <template>
-    <NuxtLink 
-      :to="`/brewery/${brewery.id}`">
+    <NuxtLink v-if="brewery" :to="`/brewery/${brewery.id}`">
     
-    <div class="relative overflow-hidden rounded-lg shadow-lg transition-transform duration-300 ease-in-out hover:shadow-xl hover:-translate-y-2">
+    <div class="border border-muted relative overflow-hidden rounded-lg shadow-lg transition-transform duration-300 ease-in-out hover:shadow-xl hover:-translate-y-2">
         <a class="absolute inset-0 z-10" :href="brewery.website" rel="ugc">
           <span class="sr-only">View {{ brewery.name }}</span>
         </a>
@@ -15,6 +14,13 @@
         </div>
     </div>
 </NuxtLink>
+<div v-else class="border border-muted relative overflow-hidden rounded-lg shadow-lg">
+    <div class="p-4 bg-background">
+      <div class="h-6 w-3/4 bg-muted rounded mb-2 animate-pulse"></div>
+      <div class="h-4 w-1/2 bg-muted rounded mb-4 animate-pulse"></div>
+      <div class="h-9 w-32 bg-muted rounded animate-pulse"></div>
+    </div>
+</div>
 </template>
 
 <script setup lang="ts">
@@ -27,7 +33,7 @@ interface Brewery {
 }
 
 defineProps<{
-  brewery: Brewery;
+  brewery: Brewery | null;
 }>();
 
 function defineProps<T>() {
