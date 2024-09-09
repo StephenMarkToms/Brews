@@ -8,7 +8,7 @@ const isLoading = ref(false)
 const currentPage = ref(1)
 const pageSize = 9
 
-const { data: metaData, refresh: refreshMeta } = await useLazyFetch(`/api/brewerydb/meta?name=${searchQuery.value}`, {
+const { data: metaData, refresh: refreshMeta } = await useLazyFetch(() => `/api/brewerydb/meta?by_name=${searchQuery.value}`, {
   lazy: true,
   server: false,
   watch: false
@@ -31,20 +31,20 @@ function debounce(fn, delay) {
 // Create a debounced version of the refresh function
 const debouncedRefresh = debounce(async () => {
   isLoading.value = true
-  const result = await refresh()
-  const metaResult = await refreshMeta()
-  if (metaResult && metaResult.data) {
-    totalPages.value = metaResult.data.total
+  const [result, metaResult] = await Promise.all([refresh(), refreshMeta()])
+  if (metaResult && metaResult.value) {
+    totalPages.value = Math.ceil(metaResult.value.total / pageSize)
+    totalResults.value = metaResult.value.total
   }
   if (result && result.data) {
     data.value = result.data.breweries
-    totalResults.value = result.data.totalResults
   }
   isLoading.value = false
 }, 300) // 300ms delay
 
 // Watch for changes in searchQuery and trigger the debounced refresh
 watch(searchQuery, () => {
+  currentPage.value = 1 // Reset page to 1 when search query changes
   debouncedRefresh()
 })
 
@@ -89,6 +89,7 @@ const totalPages = computed(() => Math.ceil(metaData.value?.total/pageSize) || 0
         <div class="flex items-center">
           <input
             v-model="searchQuery"
+            @input="currentPage = 1"
             class="flex-grow h-10 border border-input ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 w-full rounded-lg bg-muted px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
             placeholder="Search breweries..."
             type="search"
@@ -122,7 +123,7 @@ const totalPages = computed(() => Math.ceil(metaData.value?.total/pageSize) || 0
     <section class="w-full py-12 md:py-24 lg:py-32">
       <div class="container mx-auto grid grid-cols-1 gap-6 px-4 md:grid-cols-2 lg:grid-cols-3 md:px-6">
         <!-- loading state -->
-        <template v-if="isLoading">
+        <template v-if="isLoading || !data">
           <Card v-for="i in 9" :key="i" :brewery="null" />
         </template>
         <!-- results state -->
